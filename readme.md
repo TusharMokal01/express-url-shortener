@@ -1,87 +1,191 @@
-# URL Shortener
+# 🔗 URL Shortener API
 
-## Overview
+A secure and scalable **Express.js** backend providing **JWT-based authentication** and a full-featured **URL shortening service**, powered by:
 
-This application is built using Express and implements:
+* 🐘 PostgreSQL (Docker)
+* 🧬 Drizzle ORM
+* 🔐 JSON Web Tokens (JWT)
+* 🛡 Zod validation
+* 🔑 Secure password hashing (HMAC SHA256 + salt)
 
-- User registration
-- User login (JWT-based authentication)
-- URL shortening
-- URL redirection
-- Fetch user-specific URLs
-- Delete user-specific URLs
-- PostgreSQL database (via docker)
-- Drizzle ORM
-- Zod request validation
+---
 
-The server runs on:
+# 📌 Features
 
-```
+* ✅ User Registration
+* ✅ User Login (JWT Authentication)
+* ✅ URL Shortening
+* ✅ URL Redirection
+* ✅ Fetch Authenticated User URLs
+* ✅ Delete User URLs
+* ✅ Protected Routes
+* ✅ Clean Layered Architecture
 
-PORT = process.env.PORT ?? 8000
+---
 
+# 🚀 Tech Stack
+
+* Node.js
+* Express.js
+* PostgreSQL
+* Drizzle ORM
+* JWT
+* Zod
+* Docker
+
+---
+
+# 🧱 Project Structure
+
+```bash
+url-shortener/
+│
+├── db/
+│   └── db.js                     # Drizzle + PostgreSQL connection
+│
+├── models/
+│   ├── index.js                  # Exports all schemas
+│   ├── user.schema.js            # Users table schema
+│   └── url.schema.js             # URLs table schema
+│
+├── src/
+│   ├── controllers/
+│   │   ├── user.controller.js
+│   │   └── url.controller.js
+│   │
+│   ├── middlewares/
+│   │   ├── authenticateUser.js
+│   │   ├── isAuthenticated.js
+│   │   └── errorHandler.js
+│   │
+│   ├── routes/
+│   │   ├── user.routes.js
+│   │   └── url.routes.js
+│   │
+│   ├── services/
+│   │   ├── user.service.js
+│   │   └── url.service.js
+│   │
+│   ├── utils/
+│   │   ├── hashPassword.js
+│   │   ├── token.js
+│   │   └── nanoid.js
+│   │
+│   ├── validations/
+│   │   ├── user.schema.js        # Zod validation schemas
+│   │   └── url.schema.js
+│   │
+│   ├── app.js                    # Express configuration
+│   └── server.js                 # Server bootstrap
+│
+├── drizzle.config.js             # Drizzle CLI configuration
+├── .env                          # Environment variables
+├── docker-compose.yml
+├── package.json
+└── README.md
 ```
 
 ---
 
-# Authentication
+# ⚙️ Environment Variables
 
-Authentication is handled using JSON Web Tokens (JWT).
+Create a `.env` file in the root directory:
 
-## `authenticateUser` (Global Middleware)
-
-- Reads `Authorization` header.
-- Requires format:  
+```env
+PORT=8000
+DATABASE_URL=postgresql://postgres:password@localhost:5432/url_shortener
+JWT_SECRET=your_jwt_secret_key
 ```
 
+---
+
+# 🐳 Database Setup (Docker)
+
+Start PostgreSQL using Docker:
+
+```bash
+docker-compose up -d
+```
+
+Ensure your `docker-compose.yml` contains:
+
+```yaml
+services:
+  postgres:
+    image: postgres:17.4
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+volumes:
+  db_data:
+```
+
+---
+
+# 🔐 Authentication
+
+Authentication is handled using **JWT**.
+
+## Global Middleware: `authenticateUser`
+
+* Reads `Authorization` header
+* Requires format:
+
+```
 Authorization: Bearer <token>
+```
 
-````
-- Verifies token using `jwt.verify`.
-- Attaches decoded payload to `req.user`.
+* Verifies token using `jwt.verify`
+* Attaches decoded payload to `req.user`
+* If header is missing → request continues without authentication
 
-If no `Authorization` header is provided, the request proceeds without authentication.
+### Errors
 
-Errors:
-- `400` → Authorization header must start with `Bearer `
-- `500` → Internal Server Error
+* `400` → Invalid Authorization header format
+* `500` → Internal Server Error
 
 ---
 
 ## `isAuthenticated`
 
-- Ensures `req.user` exists.
-- Returns:
-- `401` → User not logged in
+* Ensures `req.user` exists
+* Returns `401` if user is not logged in
 
 ---
 
-# Test Route
+# 🧪 Test Route
 
 ## GET `/test-route`
 
-**Response**
 ```json
 {
-"Status": "Ok",
-"Message": "App is up and running."
+  "Status": "Ok",
+  "Message": "App is up and running."
 }
-````
+```
 
 ---
 
-# User Routes (`/user`)
+# 👤 User Routes
 
 ## POST `/user/signup`
 
-Controller: `resgisterUser`
+Registers a new user.
 
-* Validates request using Zod schema.
-* Checks if user already exists.
-* Hashes password using HMAC SHA256 with salt.
-* Stores user in database.
+### Body
 
-**Responses**
+```json
+{
+  "firstName": "John",
+  "lastName": "Doe",
+  "email": "john@example.com",
+  "password": "password123"
+}
+```
+
+### Responses
 
 * `400` → Validation error
 * `409` → User already exists
@@ -91,128 +195,92 @@ Controller: `resgisterUser`
 
 ## POST `/user/login`
 
-Controller: `userLogin`
+Authenticates user and returns JWT.
 
-* Validates request using Zod schema.
-* Verifies email and password.
-* Generates JWT token.
+### Body
 
-**JWT Payload**
+```json
+{
+  "email": "john@example.com",
+  "password": "password123"
+}
+```
 
-* `userId`
+### Response
 
-**Responses**
-
-* `400` → Validation error
-* `404` → User not found
-* `401` → Incorrect password
-* `201` → Returns access token
+```json
+{
+  "token": "jwt_token_here"
+}
+```
 
 ---
 
-# URL Routes (Root Level)
+# 🔗 URL Routes
 
-> `urlRouter` is mounted at root level and must be loaded after other routes.
+> `urlRouter` is mounted at root level and must be registered after other routes.
 
 ---
 
 ## POST `/shorten`
 
-Middleware:
+Requires authentication.
 
-* `isAuthenticated`
+### Body
 
-Controller:
-
-* `shortenTheUserUrl`
-
-**Body**
-
-* `url` (required, valid URL)
-* `code` (optional)
+```json
+{
+  "url": "https://example.com",
+  "code": "custom123"   // optional
+}
+```
 
 If `code` is not provided, an 8-character ID is generated using `nanoid`.
 
-**Response**
+### Response
 
-* `400` → Validation error
-* `201` → Returns:
-
-  * `urlId`
-  * `shortCode`
-  * `targetUrl`
+```json
+{
+  "urlId": "uuid",
+  "shortCode": "abc123xy",
+  "targetUrl": "https://example.com"
+}
+```
 
 ---
 
 ## GET `/urls`
 
-Middleware:
-
-* `isAuthenticated`
-
-Controller:
-
-* `getAllTheUrls`
-
-Returns all URLs belonging to the authenticated user.
-
-**Response**
-
-* `200` → List of URLs
+Returns all URLs created by authenticated user.
 
 ---
 
 ## DELETE `/delete/:urlId`
 
-Middleware:
-
-* `isAuthenticated`
-
-Controller:
-
-* `deleteUrlById`
-
-Deletes URL only if:
-
-* `urlId` matches
-* `userId` matches authenticated user
-
-**Response**
-
-* `200` → URL deleted successfully
+Deletes URL only if it belongs to authenticated user.
 
 ---
 
 ## GET `/:shortCode`
 
-Controller:
+Redirects to original URL.
 
-* `redirectToTargetUrl`
+* `404` → Invalid short code
+* `302` → Redirect to target URL
 
-* Looks up URL by `shortCode`.
-
-* Redirects to `targetUrl`.
-
-**Responses**
-
-* `404` → Invalid URL
-* Redirect → `302` to original URL
-
-> This dynamic route must be placed last in the route stack.
+> ⚠️ This route must be placed last in the routing stack.
 
 ---
 
-# Database Models
+# 🗄️ Database Schema
 
-## `usersTable` (users)
+## `users` Table
 
-Columns:
-
-* `id` (UUID, primary key)
+* `id` (UUID, Primary Key)
 * `firstName`
 * `lastName`
-* `email` (unique)
-* `role` (`ADMIN`, `MODERATOR`, `USER`) — default `USER`
+* `email` (Unique)
+* `role` (`ADMIN`, `MODERATOR`, `USER`)
 * `password`
 * `salt`
 * `createdAt`
@@ -220,92 +288,89 @@ Columns:
 
 ---
 
-## `urlsTable` (urls)
+## `urls` Table
 
-Columns:
-
-* `id` (UUID, primary key)
-* `shortCode` (unique)
+* `id` (UUID, Primary Key)
+* `shortCode` (Unique)
 * `targetUrl`
-* `userId` (references users table)
+* `userId` (Foreign Key → users.id)
 * `createdAt`
 * `updatedAt`
 
 ---
 
-# Services
+# 🔐 Password Security
 
-## `checkIfAnExistingUser(email)`
+Passwords are secured using:
 
-* Returns user by email.
+* `crypto.createHmac("sha256", salt)`
+* `randomBytes(16)` for unique salt generation
 
-## `createNewUserInDB(data)`
-
-* Inserts new user.
-* Returns `userId`.
+Both salt and hashed password are stored in the database.
 
 ---
 
-# Utilities
+# 🔄 URL Shortening Flow
 
-## `hashUserPassword(password)`
-
-* Generates salt using `randomBytes(16)`
-* Hashes password using HMAC SHA256
-* Returns `{ hashedPassword, salt }`
-
----
-
-## `verifyUserProviedPassword(password, salt)`
-
-* Hashes provided password using stored salt
-* Returns hashed value
-
----
-
-## `createToken(payload)`
-
-* Generates JWT using `jwt.sign`
-* Returns token
-
----
-
-# Validation Schemas (Zod)
-
-## Signup Schema
-
-* `firstName` (string)
-* `lastName` (optional string)
-* `email` (valid email)
-* `password` (minimum 8 characters)
-
----
-
-## Login Schema
-
-* `email` (valid email)
-* `password` (string)
-
----
-
-## Shorten URL Schema
-
-* `url` (valid URL)
-* `code` (optional string)
-
----
-
-# URL Shortening Flow
-
-1. User signs up.
-2. User logs in.
-3. Server returns JWT token.
+1. User signs up
+2. User logs in
+3. Server returns JWT
 4. Client sends:
 
-   ```
-   Authorization: Bearer <token>
-   ```
-5. Authenticated user creates short URL.
-6. Short code is stored with user ID.
-7. Visiting `/<shortCode>` redirects to original URL.
-8. Users can list and delete only their own URLs.
+```
+Authorization: Bearer <token>
+```
+
+5. Authenticated user creates short URL
+6. Short code is stored with user ID
+7. Visiting `/<shortCode>` redirects to original URL
+8. Users can list and delete only their own URLs
+
+---
+
+# ▶️ Running the Project
+
+### 1️⃣ Install dependencies
+
+```bash
+npm install
+```
+
+### 2️⃣ Start PostgreSQL
+
+```bash
+docker-compose up -d
+```
+
+### 3️⃣ Run migrations (if using Drizzle CLI)
+
+```bash
+npx drizzle-kit push
+```
+
+### 4️⃣ Start server
+
+```bash
+npm run dev
+```
+
+Server runs on:
+
+```
+http://localhost:8000
+```
+
+---
+
+# 📌 Summary
+
+This project demonstrates:
+
+* 🔐 Secure JWT authentication
+* 🛡 Layered architecture (Controllers → Services → DB)
+* 🧬 Drizzle ORM integration
+* 🧪 Zod validation
+* 🐳 Dockerized PostgreSQL
+* 🔗 Secure user-specific URL shortening
+
+---
